@@ -451,36 +451,31 @@ abstract class CompilerTest {
     * that aren't in extensionsToCopy. */
   private def recCopyFiles(sourceFile: Path, dest: Path): Unit = {
 
-    def copyfile(file: SFile, bytewise: Boolean): Unit = {
-      if (bytewise) {
-        val in = file.inputStream()
-        val out = SFile(dest).outputStream()
-        val buffer = new Array[Byte](1024)
-        def loop(available: Int):Unit = {
-          if (available < 0) {()}
-          else {
-            out.write(buffer, 0, available)
-            val read = in.read(buffer)
-            loop(read)
-          }
-        }
-        loop(0)
-        in.close()
-        out.close()
-      } else {
-        try {
-          SFile(dest)(scala.io.Codec.UTF8).writeAll((s"/* !!!!! WARNING: DO NOT MODIFY. Original is at: $file !!!!! */").replace("\\", "/"), file.slurp("UTF-8"))
-        } catch {
-          case unmappable: java.nio.charset.MalformedInputException => 
-            copyfile(file, true) //there are bytes that can't be mapped with UTF-8. Bail and just do a straight byte-wise copy without the warning header.
+    def copyfile(file: SFile): Unit = {
+      //\ followed by a path part starting with u is interpreted as an (invalid) unicode escape
+      val warning = s"/* !!!!! WARNING: DO NOT MODIFY. Original is at: $file !!!!! */").replace("\\", "/")
+      val warningbytes = warning.getBytes("ASCII")
+      val in = file.inputStream()
+      val out = SFile(dest).outputStream()
+      out.write(warningbytes)
+      
+      val buffer = new Array[Byte](1024)
+      def loop(available: Int):Unit = {
+        if (available >= 0) {
+          out.write(buffer, 0, available)
+          val read = in.read(buffer)
+          loop(read)
         }
       }
+      loop(0)
+      in.close()
+      out.close()
     }
 
     processFileDir(sourceFile, { sf => 
       if (extensionsToCopy.contains(sf.extension)) {
         dest.parent.jfile.mkdirs
-	      copyfile(sf, false)
+	      copyfile(sf)
       } else {
         log(s"WARNING: ignoring $sf")
       }
