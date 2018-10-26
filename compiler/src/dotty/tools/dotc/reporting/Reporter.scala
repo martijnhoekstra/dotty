@@ -79,7 +79,7 @@ import dotty.tools.dotc.reporting.diagnostic.MessageContainer
     report(new Info(msg, pos))
 
   def deprecationWarning(msg: => Message, pos: SourcePosition = NoSourcePosition): Unit =
-    if (this.settings.deprecation.value) reportWarning(new DeprecationWarning(msg, pos))
+    report(new DeprecationWarning(msg, pos))
 
   def migrationWarning(msg: => Message, pos: SourcePosition = NoSourcePosition): Unit =
     report(new MigrationWarning(msg, pos))
